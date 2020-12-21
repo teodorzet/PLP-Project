@@ -11,7 +11,8 @@ Inductive exp :=
 | amul : exp -> exp -> exp
 | amin : exp -> exp -> exp
 | adiv : exp -> exp -> exp
-| amod : exp -> exp -> exp.
+| amod : exp -> exp -> exp
+| apow : exp -> exp -> exp.
 
 Coercion atype : DataType >-> exp.
 Coercion avar : Variabile >-> exp.
@@ -21,6 +22,7 @@ Notation "A *' B" := (amul A B) (at level 58, left associativity).
 Notation "A -' B" := (amin A B) (at level 59, right associativity).
 Notation "A /' B" := (adiv A B) (at level 57, left associativity).
 Notation "A %' B" := (amod A B) (at level 55).
+Notation "'pow' A @ B" := (apow A B) (at level 54).
 
 Inductive bexp :=
 | btrue : bexp
@@ -38,7 +40,7 @@ Notation "A <' B" := (bless A B) (at level 57).
 Notation "A =' B" := (bequal A B) (at level 57).
 Notation "A >' B" := (bmore A B) (at level 57).
 Notation "A 'and'' B" := (band A B) (at level 53, left associativity).
-Notation "A <> B" := (bdiff A B) (at level 52).
+Notation "A <!> B" := (bdiff A B) (at level 52).
 Notation "A 'or'' B" := (bor A B) (at level 51).
 
 
@@ -64,7 +66,10 @@ Definition ecuation :=
   int ~ i ;;
   x ::= 5 ;;
   s ::= 0 ;;
+  x ::= pow x @ 3  ;;
   fors (i ::= 0) # (i <' 4) # (i ::= i +' 1) #
   (s ::= s +' x ;;
    x ::= x +' i) ;;
-  ifs (s =' 10) then (s ::= s +' 100) else (s ::= 0).
+  ifs (s <!> 10) then (s ::= s +' 100) else (s ::= 0).
+  
+
