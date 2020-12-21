@@ -1,7 +1,4 @@
-(* PROIECT PLP *)
 Require Import String.
-
-Open Scope string_scope.
 
 Inductive Variabile := a | b | c | s | i | n | x.
 Inductive DataType := int | bool.
@@ -32,13 +29,18 @@ Inductive bexp :=
 | band : bexp -> bexp -> bexp
 | bless : exp -> exp -> bexp
 | bequal : exp -> exp -> bexp
-| bmore : exp -> exp -> bexp.
+| bmore : exp -> exp -> bexp
+| bdiff : exp -> exp -> bexp
+| bor : exp -> exp -> bexp.
 
 Notation "! A" := (bneg A) (at level 52, left associativity).
 Notation "A <' B" := (bless A B) (at level 57).
 Notation "A =' B" := (bequal A B) (at level 57).
 Notation "A >' B" := (bmore A B) (at level 57).
 Notation "A 'and'' B" := (band A B) (at level 53, left associativity).
+Notation "A <> B" := (bdiff A B) (at level 52).
+Notation "A 'or'' B" := (bor A B) (at level 51).
+
 
 Inductive op :=
 | declar : DataType -> Variabile -> op
@@ -66,6 +68,3 @@ Definition ecuation :=
   (s ::= s +' x ;;
    x ::= x +' i) ;;
   ifs (s =' 10) then (s ::= s +' 100) else (s ::= 0).
-  
-
-
