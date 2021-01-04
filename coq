@@ -49,7 +49,9 @@ Inductive op :=
 | seq : op -> op -> op
 | whil : bexp -> op -> op
 | ifthen : bexp -> op -> op -> op
-| fordo : bexp -> op -> op -> op.
+| fordo : bexp -> op -> op -> op
+| fmake : string -> op -> op
+| fcall : string -> op.
 
 Notation "T ~ A" := (declar T A) (at level 79).
 Notation "A ::= B" := (assig A B) (at level 80).
@@ -57,6 +59,8 @@ Notation "A ;; B" := (seq A B) (at level 98, left associativity).
 Notation "'while' A B" := (whil A B) (at level 96, A at level 9).
 Notation "'ifs' X 'then' A 'else' B" := (ifthen X A B) (at level 97).
 Notation "'fors' A # B # X" := (fordo A B X) (at level 96).
+Notation "A '() {' B '}'" := (fmake A B) (at level 98).
+Notation "A '()'" := (fcall A) (at level 99).
 
 
 Definition ecuation :=
@@ -126,6 +130,8 @@ Import ListNotations.
 Section Lists.
 
 Variable l : list Variabile.
+Variable f : list string.
+Variable n : list string.
 
 Definition alloc (env : Env) (var : Variabile) (type : DataType) : bool :=
   if (count_occ l var > 0)
@@ -148,6 +154,9 @@ Fixpoint execute (o : op) (env : Env) (gas : nat) : Env :=
               | fordo cond step A => if (beval cond env)
                                      then execute (A ;; step ;; (fordo cond step A)) env gas'
                                      else env
+              | fmake name A => concat name n, concat A f
+              | fcall name => if (count_occ n name >0)
+                              then execute (nth (nth
               end
   end.
 
