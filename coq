@@ -320,6 +320,52 @@ Proof.
   - simpl. unfold update. simpl. reflexivity.
 Qed.
 
+Definition sum3 :=
+  n ::= 0 ;;
+  i ::= 0 ;;
+  while (i <' 3)
+  (
+  n ::= n +' i ;;
+  ifthen (i =' 2) (n ::= n +' i break) ( n ::= n +' i)
+  ).
+
+(*Example eval_sum3 :
+  exists state, sum3 -{ state0 }-> state /\ state n = 6.
+Proof.
+  eexists.
+  split.
+  - unfold sum1.
+    + eapply e_seq.
+      ++ eapply e_seq.
+        ** eapply e_assignment; eauto.
+        ** eapply e_assignment; eauto.
+       ++ eapply e_whiletrue; auto.
+        ** eapply e_lessthan; auto.
+        ** eapply e_seq; eauto.
+        *** eapply e_seq; eauto.
+        **** eapply e_assignment; eauto.
+        **** eapply e_ifelsefalse; eauto.
+        ***** eapply e_equal; eauto.
+        ***** eapply e_assignment; eauto.
+        *** eapply e_whiletrue; auto.
+        **** eapply e_lessthan; auto.
+        **** eapply e_seq; eauto.
+        ***** eapply e_seq; eauto.
+        ****** eapply e_assignment; eauto.
+        ****** eapply e_ifelsefalse; eauto.
+        ******* eapply e_equal; eauto.
+        ******* eapply e_assignment; eauto.
+        ***** eapply e_whiletrue; auto.
+        ****** eapply e_lessthan; auto.
+        ****** eapply e_seq; eauto.
+        ******* eapply e_seq; eauto.
+        ******** eapply e_assignment; eauto.
+        ******** eapply e_ifelsetrue; eauto.
+        ********* eapply e_equal; eauto.
+        ********** eapply e_true; eauto.
+  - simpl. unfold update. simpl. reflexivity.
+Qed.*)
+
 
 Fixpoint execute (o : op) (env : Env) (gas : nat) : Env :=
   match gas with
