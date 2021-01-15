@@ -1,8 +1,12 @@
 Require Import String.
 Require Import Coq.Lists.List.
 
+
+
 Inductive Variabile := a | b | c | s | i | n | x.
 Inductive DataType := int | bin.
+
+Scheme Equality for Variabile.
 
 Inductive exp :=
 | avar : Variabile -> exp
@@ -16,7 +20,7 @@ Inductive exp :=
 
 Coercion avar : Variabile >-> exp.
 Coercion anum : nat >-> exp.
-Notation "A +' B" := (aplus A B) (at level 60, right associativity).
+Notation "A +' B" := (aplus A B) (at level 59, right associativity).
 Notation "A *' B" := (amul A B) (at level 58, left associativity).
 Notation "A -' B" := (amin A B) (at level 59, right associativity).
 Notation "A /' B" := (adiv A B) (at level 57, left associativity).
@@ -79,7 +83,6 @@ Definition ecuation :=
 (* lista valori *)
 
 Definition Env := Variabile -> nat.
-Scheme Equality for Variabile.
 Check Variabile_beq.
 Require Import Coq.ZArith.Zpower.
 Require Import Wf_nat ZArith_base Zcomplements.
@@ -129,21 +132,178 @@ Fixpoint beval (b : bexp) (env : Env) : bool :=
 Import ListNotations.
 Section Lists.
 
+
 Variable l : list Variabile.
 Variable f : list string.
-Variable n : list string.
+Variable k : list string.
 
-Definition alloc (env : Env) (var : Variabile) (type : DataType) : bool :=
-  if (count_occ l var > 0)
-  then false
-  else concat var l.
+Check count_occ.
+Check count_occ string_dec.
+Check Variabile.
+Print Variabile.
+
+Reserved Notation "A =[ S ]=> N" (at level 60).
+
+
+Inductive aeval : exp -> Env -> nat -> Prop :=
+| const : forall n sigma, anum n =[ sigma ]=> n 
+| var : forall v sigma, avar v =[ sigma ]=> (sigma v) 
+| add : forall a1 a2 i1 i2 sigma n,
+    a1 =[ sigma ]=> i1 ->
+    a2 =[ sigma ]=> i2 ->
+    n = i1 + i2 ->
+    a1 +' a2 =[sigma]=> n
+| times : forall a1 a2 i1 i2 sigma n,
+    a1 =[ sigma ]=> i1 ->
+    a2 =[ sigma ]=> i2 ->
+    n = i1 * i2 ->
+    a1 *' a2 =[sigma]=> n
+| minus : forall a1 a2 i1 i2 sigma n,
+    a1 =[ sigma ]=> i1 ->
+    a2 =[ sigma ]=> i2 ->
+    n = i1 - i2 ->
+    a1 -' a2 =[sigma]=> n
+| divide : forall a1 a2 i1 i2 sigma n,
+    a1 =[ sigma ]=> i1 ->
+    a2 =[ sigma ]=> i2 ->
+    n = Nat.div i1 i2 ->
+    a1 /' a2 =[sigma]=> n
+| modulo : forall a1 a2 i1 i2 sigma n,
+    a1 =[ sigma ]=> i1 ->
+    a2 =[ sigma ]=> i2 ->
+    n = Nat.modulo i1 i2 ->
+    a1 %' a2 =[sigma]=> n
+| power : forall a1 a2 i1 i2 sigma n,
+    a1 =[ sigma ]=> i1 ->
+    a2 =[ sigma ]=> i2 ->
+    n = Z.to_nat (Zpower_nat (Z.of_nat i1) i2) ->
+    apow a1 a2 =[sigma]=> n
+where "a =[ sigma ]=> n" := (aeval a sigma n).
+
+Hint Constructors aeval.
+
+Require Extraction.
+Extraction Language Haskell.
+(*Recursive Extraction eval.*)
+
+Reserved Notation "B ={ S }=> B'" (at level 70).
+
+Inductive bevall : bexp -> Env -> bool -> Prop :=
+| e_true : forall sigma, btrue ={ sigma }=> true
+| e_false : forall sigma, bfalse ={ sigma }=> false
+| e_lessthan : forall a1 a2 i1 i2 sigma b,
+    a1 =[ sigma ]=> i1 ->
+    a2 =[ sigma ]=> i2 ->
+    b = Nat.leb i1 i2 ->
+    a1 <' a2 ={ sigma }=> b
+| e_nottrue : forall b sigma,
+    b ={ sigma }=> true ->
+    (bneg b) ={ sigma }=> false
+| e_notfalse : forall b sigma,
+    b ={ sigma }=> false ->
+    (bneg b) ={ sigma }=> true
+| e_andtrue : forall b1 b2 sigma t,
+    b1 ={ sigma }=> true ->
+    b2 ={ sigma }=> t ->
+    band b1 b2 ={ sigma }=> t
+| e_andfalse : forall b1 b2 sigma,
+    b1 ={ sigma }=> false ->
+    band b1 b2 ={ sigma }=> false
+| e_ortrue : forall b1 b2 sigma t,
+    b1 ={ sigma }=> true ->
+    b2 ={ sigma }=> t ->
+    bor b1 b2 ={ sigma }=> true
+| e_orfalse : forall b1 b2 sigma,
+    b1 ={ sigma }=> false ->
+    b2 ={ sigma }=> false ->
+    bor b1 b2 ={ sigma }=> false
+
+where "B ={ S }=> B'" := (bevall B S B').
+
+
+Reserved Notation "S -{ Sigma }-> Sigma'" (at level 60).
+Check update.
+Inductive stmt : op -> Env -> Env -> Prop :=
+| e_assignment: forall a i x sigma sigma',
+    a =[ sigma ]=> i ->
+    sigma' = (update sigma x i) ->
+    (x ::= a) -{ sigma }-> sigma'
+
+| e_seq : forall s1 s2 sigma sigma1 sigma2,
+    s1 -{ sigma }-> sigma1 ->
+    s2 -{ sigma1 }-> sigma2 ->
+
+    (s1 ;; s2) -{ sigma }-> sigma2
+| e_whilefalse : forall b s sigma,
+    b ={ sigma }=> false ->
+    whil b s -{ sigma }-> sigma
+
+| e_whiletrue : forall b s sigma sigma',
+    b ={ sigma }=> true ->
+    (s ;; while b s) -{ sigma }-> sigma' ->
+    whil b s -{ sigma }-> sigma'
+
+| e_ifelsefalse : forall b s1 s2 sigma sigma',
+    b ={ sigma }=> false ->
+    s2 -{ sigma }-> sigma' ->
+    ifthen b s1 s2 -{ sigma }-> sigma'
+
+| e_ifelsetrue : forall b s1 s2 sigma sigma',
+    b ={ sigma }=> true ->
+    s1 -{ sigma }-> sigma' ->
+    ifthen b s1 s2 -{ sigma }-> sigma'
+
+| e_forstrue : forall b p s sigma sigma',
+    b ={ sigma }=> true ->
+    s -{ sigma }-> sigma' ->
+    p -{ sigma }-> sigma' ->
+    fordo b p s -{ sigma }-> sigma'
+
+| e_forsfalse : forall b p s sigma,
+    b ={ sigma }=> false ->
+    fordo b p s -{ sigma }-> sigma
+
+where "s -{ sigma }-> sigma'" := (stmt s sigma sigma').
+
+Definition sum1 :=
+  n ::= 1 ;;
+  s ::= 0 ;;
+  ifthen ( 2 <' n ) (s ::= 1) (s ::= 2)
+  ;; s ::= pow s @ 2.
+
+Compute (stmt sum1).
+
+Definition sum2 :=
+  n ::= 1 ;;
+  i ::= 0 ;;
+  fordo (i <' 5) (i ::= i +' 1) (n ::= n +' 2).
+
+Definition state0 := fun (x : Variabile) => 0.
+
+Example eval_sum1 :
+  exists state, sum1 -{ state0 }-> state /\ state s = 4.
+Proof.
+  eexists.
+  split.
+  - unfold sum1.
+    + eapply e_seq.
+      ++ eapply e_seq.
+       +++ eapply e_seq.
+        ** eapply e_assignment; eauto.
+        ** eapply e_assignment; eauto.
+       +++ eapply e_ifelsefalse.
+        ** eapply e_lessthan; auto.
+        ** eapply e_assignment; eauto.
+      ++ eapply e_assignment; eauto.
+  - simpl. unfold update. simpl. reflexivity.
+Qed.
+
 
 Fixpoint execute (o : op) (env : Env) (gas : nat) : Env :=
   match gas with
   | 0 => env
   | S gas' => match o with
-              | declar var type => alloc env var type
-              | assig var exp => update env var (eval exp env)
+              | assig a exp => update env a (eval exp env)
               | seq A B => execute B (execute A env gas') gas'
               | whil cond A => if (beval cond env)
                                then execute (A ;; (whil cond A)) env gas'
@@ -154,9 +314,7 @@ Fixpoint execute (o : op) (env : Env) (gas : nat) : Env :=
               | fordo cond step A => if (beval cond env)
                                      then execute (A ;; step ;; (fordo cond step A)) env gas'
                                      else env
-              | fmake name A => concat name n, concat A f
-              | fcall name => if (count_occ n name >0)
-                              then execute (nth (nth
               end
   end.
+
 
