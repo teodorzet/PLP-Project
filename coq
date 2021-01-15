@@ -55,7 +55,8 @@ Inductive op :=
 | ifthen : bexp -> op -> op -> op
 | fordo : bexp -> op -> op -> op
 | fmake : string -> op -> op
-| fcall : string -> op.
+| fcall : string -> op
+| brk : op -> op.
 
 Notation "T ~ A" := (declar T A) (at level 79).
 Notation "A ::= B" := (assig A B) (at level 80).
@@ -65,6 +66,7 @@ Notation "'ifs' X 'then' A 'else' B" := (ifthen X A B) (at level 97).
 Notation "'fors' A # B # X" := (fordo A B X) (at level 96).
 Notation "A '() {' B '}'" := (fmake A B) (at level 98).
 Notation "A '()'" := (fcall A) (at level 99).
+Notation "A 'break'" := (brk A) (at level 101).
 
 
 Definition ecuation :=
@@ -77,9 +79,11 @@ Definition ecuation :=
   i ::= 0 ;;
   fors (i <' 4) # (i ::= i +' 1) #
   (s ::= s +' x ;;
-   x ::= x +' i) ;;
+   x ::= x +' i 
+   break
+  ) ;;
   ifs (s <!> 10) then (s ::= s +' 100) else (s ::= 0).
-  
+
 (* lista valori *)
 
 Definition Env := Variabile -> nat.
@@ -217,6 +221,16 @@ Inductive bevall : bexp -> Env -> bool -> Prop :=
     b1 ={ sigma }=> false ->
     b2 ={ sigma }=> false ->
     bor b1 b2 ={ sigma }=> false
+| e_dif : forall a1 a2 i1 i2 sigma b,
+    a1 =[ sigma ]=> i1 ->
+    a2 =[ sigma ]=> i2 ->
+    b = notequal i1 i2 ->
+    a1 <!> a2 ={ sigma }=> b
+| e_equal : forall a1 a2 i1 i2 sigma b,
+    a1 =[ sigma ]=> i1 ->
+    a2 =[ sigma ]=> i2 ->
+    b = Nat.eqb i1 i2 ->
+    a1 =' a2 ={ sigma }=> b 
 
 where "B ={ S }=> B'" := (bevall B S B').
 
@@ -261,6 +275,14 @@ Inductive stmt : op -> Env -> Env -> Prop :=
 
 | e_forsfalse : forall b p s sigma,
     b ={ sigma }=> false ->
+    fordo b p s -{ sigma }-> sigma
+
+| break_while : forall b s sigma sigma',
+    brk s -{ sigma }-> sigma' ->
+    whil b s -{ sigma }-> sigma
+
+| break_fors : forall b p s sigma sigma',
+    brk s -{ sigma }-> sigma' ->
     fordo b p s -{ sigma }-> sigma
 
 where "s -{ sigma }-> sigma'" := (stmt s sigma sigma').
@@ -314,6 +336,7 @@ Fixpoint execute (o : op) (env : Env) (gas : nat) : Env :=
               | fordo cond step A => if (beval cond env)
                                      then execute (A ;; step ;; (fordo cond step A)) env gas'
                                      else env
+              | brk A => env
               end
   end.
 
